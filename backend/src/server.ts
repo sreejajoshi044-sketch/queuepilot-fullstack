@@ -7,23 +7,21 @@ dotenv.config();
 
 const PORT = Number(process.env.PORT) || 5000;
 
-// Start the backend only after connecting to PostgreSQL
 const startServer = async (): Promise<void> => {
   try {
-    // Verify PostgreSQL connection
     await connectDB();
 
-    // Start Express server
-    app.listen(PORT, () => {
-      console.log("=================================");
-      console.log("🚀 QueueFlow Backend Started!");
-      console.log(`🌐 Server: http://localhost:${PORT}`);
-      console.log(`❤️ Health: http://localhost:${PORT}/api/health`);
-      console.log("✅ PostgreSQL connected");
-      console.log("=================================");
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log("============================");
+      console.log("QueuePilot Backend Started");
+      console.log(`Port: ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`Health endpoint: /api/health`);
+      console.log("PostgreSQL connected");
+      console.log("============================");
     });
   } catch (error) {
-    console.error("❌ Failed to start QueueFlow backend:", error);
+    console.error("Failed to start QueuePilot backend:", error);
     process.exit(1);
   }
 };

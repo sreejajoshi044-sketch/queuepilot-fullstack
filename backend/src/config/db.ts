@@ -4,41 +4,44 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Create a PostgreSQL connection pool
+// Neon uses DATABASE_URL.
+// Local PostgreSQL uses DB_HOST, DB_PORT, etc.
+const isCloudDatabase = Boolean(process.env.DATABASE_URL);
+
 const pool = new Pool({
-  host: process.env.DB_HOST || "localhost",
-  port: Number(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || "queueflow_db",
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD,
+  ...(isCloudDatabase
+    ? {
+        connectionString: process.env.DATABASE_URL,
+      }
+    : {
+        host: process.env.DB_HOST || "localhost",
+        port: Number(process.env.DB_PORT) || 5432,
+        database: process.env.DB_NAME || "queueflow_db",
+        user: process.env.DB_USER || "postgres",
+        password: process.env.DB_PASSWORD || "12345",
+      }),
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
 });
 
-// Test the PostgreSQL connection
+// Check the database connection when server starts
 export const connectDB = async (): Promise<void> => {
+  const client = await pool.connect();
+
   try {
-    const client = await pool.connect();
+    const result = await client.query(
+      "SELECT CURRENT_DATABASE() AS database_name"
+    );
 
-    try {
-      const result = await client.query(
-        "SELECT NOW() AS current_time"
-      );
-
-      console.log("✅ PostgreSQL connected successfully!");
-      console.log(
-        "🕒 Database time:",
-        result.rows[0].current_time
-      );
-    } finally {
-      client.release();
-    }
-  } catch (error) {
-    console.error("❌ PostgreSQL connection failed:", error);
-    throw error;
+    console.log("PostgreSQL connected successfully");
+    console.log(
+      "Database:",
+      result.rows[0].database_name
+    );
+  } finally {
+    client.release();
   }
 };
 
-// Export pool for database queries
 export default pool;

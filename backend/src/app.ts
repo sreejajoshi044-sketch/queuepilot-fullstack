@@ -3,62 +3,80 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
-// Import API routes
+// API routes
 import authRoutes from "./routes/authRoutes";
 import queueRoutes from "./routes/queueRoutes";
 import tokenRoutes from "./routes/tokenRoutes";
 import analyticsRoutes from "./routes/analyticsRoutes";
 
-// Import error handling middleware
+// Error handling
 import {
   AppError,
   errorHandler,
 } from "./middleware/errorMiddleware";
 
-// Load environment variables
 dotenv.config();
 
-// Create Express application
 const app = express();
 
-// Enable CORS for React frontend
+// Allowed frontend origins
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  ...(process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(",").map(
+        (url) => url.trim().replace(/\/$/, "")
+      )
+    : []),
+];
+
+// CORS configuration
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header,
+      // such as Postman and backend health checks.
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.use("/api/analytics", analyticsRoutes);
 
-// Parse incoming JSON requests
+// Parse JSON requests
 app.use(express.json());
 
-// Home endpoint
+// Home route
 app.get("/", (_req, res) => {
   res.status(200).json({
     success: true,
-    message: "Welcome to QueueFlow API",
+    message: "Welcome to QueuePilot API",
   });
 });
 
-// Health check endpoint
+// Health check
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
     success: true,
-    message: "QueueFlow Backend is running successfully",
+    message: "QueuePilot Backend is running successfully",
     timestamp: new Date().toISOString(),
   });
 });
 
-// Manager authentication routes
+// Authentication
 app.use("/api/auth", authRoutes);
 
-// Protected queue routes
+// Queue management
 app.use("/api/queues", queueRoutes);
 
-// Protected token routes
+// Token management
 app.use("/api/queues", tokenRoutes);
 
-// Protected analytics routes
+// Analytics
 app.use("/api/analytics", analyticsRoutes);
 
 // Handle unknown routes
@@ -71,7 +89,7 @@ app.use((req, _res, next) => {
   );
 });
 
-// Global error handler — keep this last
+// Global error handler
 app.use(errorHandler);
 
 export default app;
