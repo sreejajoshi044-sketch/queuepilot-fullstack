@@ -10,6 +10,8 @@ import {
   EyeOff,
   ArrowRight,
   ShieldCheck,
+  Copy,
+  Check,
 } from "lucide-react";
 
 type LoginProps = {
@@ -29,8 +31,12 @@ type LoginResponse = {
   };
 };
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+// Public demo credentials intended for testing only.
+// These must match the demo manager account in PostgreSQL.
+const DEMO_EMAIL = "manager@queuepilot.com";
+const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || "12345";
 
 function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState("");
@@ -38,6 +44,31 @@ function Login({ onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fillDemoCredentials = () => {
+    setEmail(DEMO_EMAIL);
+
+    if (DEMO_PASSWORD) {
+      setPassword(DEMO_PASSWORD);
+    }
+
+    setError("");
+  };
+
+  const copyDemoCredentials = async () => {
+    const credentials = `Email: ${DEMO_EMAIL}\nPassword: ${
+      DEMO_PASSWORD || "Contact project owner for demo password"
+    }`;
+
+    try {
+      await navigator.clipboard.writeText(credentials);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Unable to copy credentials automatically.");
+    }
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -76,7 +107,7 @@ function Login({ onLogin }: LoginProps) {
         return;
       }
 
-      // Save JWT for authenticated API requests
+      // Save JWT for authenticated requests
       sessionStorage.setItem(
         "queueflow_token",
         result.data.token
@@ -88,18 +119,18 @@ function Login({ onLogin }: LoginProps) {
         JSON.stringify(result.data.manager)
       );
 
-      // Notify QueueContext to fetch real PostgreSQL data
+      // Notify QueueContext that authentication changed
       window.dispatchEvent(
         new Event("queueflow-auth-changed")
       );
 
-      // Open dashboard only after successful login
+      // Open dashboard after successful login
       onLogin(userEmail, password);
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (loginError) {
+      console.error("Login error:", loginError);
 
       setError(
-        "Cannot connect to the server. Please check that your backend is running."
+        "Cannot connect to the server. Please check your connection and try again."
       );
     } finally {
       setLoading(false);
@@ -128,7 +159,7 @@ function Login({ onLogin }: LoginProps) {
         </div>
 
         <h1 className="text-xl font-bold tracking-tight">
-          QueueFlow
+          QueuePilot
         </h1>
       </div>
 
@@ -137,7 +168,7 @@ function Login({ onLogin }: LoginProps) {
         MANAGER PORTAL
       </div>
 
-      {/* Large Background Panel */}
+      {/* Background Panel */}
       <div className="pointer-events-none absolute h-[680px] w-[600px] max-w-[90vw] rounded-[80px] border border-blue-400/10 bg-gradient-to-b from-blue-500/15 via-blue-600/5 to-transparent" />
 
       {/* Login Card */}
@@ -157,7 +188,7 @@ function Login({ onLogin }: LoginProps) {
           </p>
         </div>
 
-        {/* Form */}
+        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}
           <div>
@@ -179,7 +210,7 @@ function Login({ onLogin }: LoginProps) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="manager@queueflow.com"
+                placeholder="manager@queuepilot.com"
                 autoComplete="username"
                 required
                 disabled={loading}
@@ -205,7 +236,7 @@ function Login({ onLogin }: LoginProps) {
 
               <input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
@@ -220,9 +251,8 @@ function Login({ onLogin }: LoginProps) {
                 aria-label={
                   showPassword ? "Hide password" : "Show password"
                 }
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-400"
               >
                 {showPassword ? (
@@ -232,6 +262,60 @@ function Login({ onLogin }: LoginProps) {
                 )}
               </button>
             </div>
+          </div>
+
+          {/* Demo Credentials */}
+          <div className="rounded-xl border border-blue-400/25 bg-blue-500/10 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={17} className="text-blue-400" />
+                <p className="text-sm font-semibold text-blue-200">
+                  Demo Login Credentials
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={copyDemoCredentials}
+                className="text-slate-400 transition hover:text-white"
+                aria-label="Copy demo credentials"
+              >
+                {copied ? (
+                  <Check size={17} className="text-green-400" />
+                ) : (
+                  <Copy size={17} />
+                )}
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs sm:text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-400">Email:</span>
+                <span className="font-medium text-white">
+                  {DEMO_EMAIL}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-400">Password:</span>
+                <span className="font-medium text-white">
+                  {DEMO_PASSWORD || "Not configured"}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              disabled={loading}
+              className="mt-4 w-full rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2.5 text-sm font-semibold text-blue-200 transition hover:bg-blue-500/25 disabled:opacity-60"
+            >
+              Use Demo Credentials
+            </button>
+
+            <p className="mt-2 text-xs text-slate-400">
+              Demo account for testing QueuePilot features.
+            </p>
           </div>
 
           {/* Error Message */}
@@ -258,17 +342,14 @@ function Login({ onLogin }: LoginProps) {
 
         {/* Security Note */}
         <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
-          <ShieldCheck
-            size={16}
-            className="text-blue-400"
-          />
+          <ShieldCheck size={16} className="text-blue-400" />
           Secure Queue Management Portal
         </div>
       </div>
 
       {/* Footer */}
       <p className="absolute bottom-6 text-center text-xs text-slate-500">
-        QueueFlow © {new Date().getFullYear()}
+        QueuePilot © {new Date().getFullYear()}
       </p>
     </div>
   );
